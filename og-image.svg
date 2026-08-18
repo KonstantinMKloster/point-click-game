@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#ffffff"/>
+  <circle cx="600" cy="230" r="90" fill="#111111"/>
+  <text x="600" y="420" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="120" font-weight="800" fill="#111111" letter-spacing="-2">60</text>
+  <text x="600" y="480" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="30" fill="#888888">Klicke so viele Punkte wie möglich in 60 Sekunden</text>
+</svg>

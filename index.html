@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>60 — Browser-Minispiele</title>
+<meta name="description" content="60 Sekunden, zwei Spiele: Punkte klicken oder Text tippen. Minimalistische Browser-Minispiele ohne Anmeldung.">
+
+<!-- Open Graph -->
+<meta property="og:title" content="60 — Browser-Minispiele">
+<meta property="og:description" content="60 Sekunden, zwei Spiele: Punkte klicken oder Text tippen.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://raw.githubusercontent.com/KonstantinMKloster/point-click-game/main/og-image.svg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="60 — Browser-Minispiele">
+<meta name="twitter:description" content="60 Sekunden, zwei Spiele: Punkte klicken oder Text tippen.">
+
+<!-- Favicon: simple emoji dot as inline SVG -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='%23111'/%3E%3C/svg%3E">
+
+<style>
+  :root {
+    --fg: #111;
+    --muted: #888;
+    --border: #eee;
+    --accent: #111;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    background: #fff;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+  }
+
+  .title {
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+
+  .subtitle {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 380px;
+    line-height: 1.5;
+    margin: 0 0 40px;
+  }
+
+  .games {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .game-card {
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px 24px;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .game-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--fg);
+  }
+
+  .game-card:active {
+    transform: scale(0.98);
+  }
+
+  .game-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+  }
+
+  .game-name {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .game-desc {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+
+  .game-highscore {
+    font-size: 13px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .game-highscore strong {
+    color: var(--fg);
+  }
+
+  footer {
+    margin-top: 48px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  footer a {
+    color: var(--muted);
+  }
+
+  @media (max-width: 480px) {
+    .title { font-size: 48px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <h1 class="title">60</h1>
+  <p class="subtitle">Zwei Minispiele, jeweils 60 Sekunden. Wie gut schneidest du ab?</p>
+
+  <div class="games">
+    <a class="game-card" href="dot.html">
+      <div class="game-icon">🎯</div>
+      <div class="game-name">Punkte klicken</div>
+      <div class="game-desc">Klicke so viele Punkte wie möglich, bevor die Zeit abläuft.</div>
+      <div class="game-highscore" id="dot-highscore">Highscore: —</div>
+    </a>
+
+    <a class="game-card" href="type.html">
+      <div class="game-icon">⌨️</div>
+      <div class="game-name">Text tippen</div>
+      <div class="game-desc">Tippe den vorgegebenen Text so schnell und fehlerfrei wie möglich mit.</div>
+      <div class="game-highscore" id="type-highscore">Highscore: —</div>
+    </a>
+  </div>
+
+  <footer>Kein Login, keine Werbung — Highscores bleiben lokal in diesem Browser gespeichert.</footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  function renderHighscore(elId, key, suffix) {
+    var el = document.getElementById(elId);
+    var v = parseInt(localStorage.getItem(key), 10);
+    if (isNaN(v)) {
+      el.textContent = "Noch kein Highscore";
+      return;
+    }
+    el.innerHTML = "Highscore: <strong>" + v + "</strong>" + (suffix ? " " + suffix : "");
+  }
+
+  renderHighscore("dot-highscore", "dotgame_highscore", "");
+  renderHighscore("type-highscore", "typegame_highscore_words", "Wörter");
+})();
+</script>
+</body>
+</html>
