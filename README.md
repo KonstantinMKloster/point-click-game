@@ -2,7 +2,7 @@
 
 Minimalistische Browser-Minispiele: jede Runde dauert 60 Sekunden.
 
-**🎯 Punkte klicken** — Ein einzelner runder Punkt erscheint an einer zufälligen Position auf einem weißen Bildschirm. Jeder Treffer gibt +1 Punkt, der Punkt verschwindet mit einer kurzen Pop-Animation und taucht sofort an neuer Stelle wieder auf.
+**🎯 Punkte klicken** — Ein einzelner runder Punkt erscheint an einer zufälligen Position auf einem weißen Bildschirm. Jeder Treffer gibt +1 Punkt, der Punkt verschwindet mit einer kurzen Pop-Animation und taucht sofort an neuer Stelle wieder auf. Dazu läuft ein vollständig synthetisierter Chill-House-Loop (Web Audio API, keine Audiodateien) sowie kurze Klick-/Fanfaren-Sounds — Musik und Klick-Sounds lassen sich unabhängig voneinander stummschalten.
 
 **⌨️ Text tippen** — Ein Text läuft wie bei einem Teleprompter von unten ins Bild und verblasst nach oben hin. Richtig getippte Buchstaben färben sich schwarz, falsche rot; mit Backspace lässt sich korrigieren. Bei jeder Runde wird eine neue, zufällige Textreihenfolge zusammengestellt.
 
@@ -36,7 +36,8 @@ Jede Seite ist vollständig eigenständig (HTML, CSS und JS jeweils inline, kein
 ## Tech-Stack
 
 - Reines Vanilla JavaScript, HTML und CSS — kein Framework, kein Build-Tool, keine externen Abhängigkeiten
-- Highscore-Persistenz über `localStorage` (`dotgame_highscore`, `typegame_highscore_words`)
+- Sound in „Punkte klicken" komplett synthetisch über die Web Audio API erzeugt — keine mp3/wav-Dateien
+- Highscore-Persistenz über `localStorage` (`dotgame_highscore`, `typegame_highscore_words`); Mute-Status für Musik/Klick separat gespeichert (`dotgame_musicMuted`, `dotgame_sfxMuted`)
 - Läuft direkt über GitHub Pages, da `index.html` im Repo-Root liegt
 
 ## Lizenz

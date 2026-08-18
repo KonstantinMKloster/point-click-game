@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Punkte klicken — 60</title>
-<meta name="description" content="Klicke so viele Punkte wie möglich in 60 Sekunden. Ein minimalistisches Browser-Reflexspiel.">
+<meta name="description" content="Klicke so viele Punkte wie möglich in 60 Sekunden. Mit vollständig synthetisiertem Chill-House-Soundtrack (Web Audio API, keine Audiodateien).">
 
 <!-- Open Graph -->
 <meta property="og:title" content="Punkte klicken — 60">
@@ -15,137 +15,189 @@
 <meta name="twitter:title" content="Punkte klicken — 60">
 <meta name="twitter:description" content="Klicke so viele Punkte wie möglich in 60 Sekunden.">
 
-<!-- Favicon: simple emoji dot as inline SVG -->
+<!-- Favicon: simple dot symbol as inline SVG -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='%23111'/%3E%3C/svg%3E">
 
 <style>
   :root {
-    --fg: #111;
-    --muted: #888;
-    --border: #eee;
-    --accent: #111;
-    --danger: #e0242c;
-    color-scheme: light;
+    --ink: #111111;
+    --dot: #111111;
+    --accent: #ff3b30;
+    --muted: #b3b3b3;
   }
-
   * { box-sizing: border-box; }
-
   html, body {
     margin: 0;
     padding: 0;
-    height: 100%;
-    overflow: hidden;
-    background: #fff;
-    color: var(--fg);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-  }
-
-  #app {
-    position: relative;
     width: 100%;
     height: 100%;
+    background: #ffffff;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  #stage {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    cursor: crosshair;
   }
 
-  /* ---------- Progress bar ---------- */
-  #progress-track {
+  /* top bar */
+  #hud {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 4px;
-    background: var(--border);
-    z-index: 5;
-  }
-
-  #progress-bar {
-    height: 100%;
-    width: 100%;
-    background: var(--accent);
-    transform-origin: left;
-    transition: transform 1s linear, background-color 0.3s ease;
-  }
-
-  #progress-bar.urgent {
-    background: var(--danger);
-  }
-
-  /* ---------- HUD ---------- */
-  #hud {
-    position: absolute;
-    top: 20px;
-    left: 0;
     right: 0;
-    display: none;
+    display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 0 28px;
-    z-index: 4;
+    padding: 28px 32px;
     pointer-events: none;
+    z-index: 5;
   }
-
-  #hud.visible { display: flex; }
-
-  #score {
+  .hud-block { display: flex; flex-direction: column; }
+  .hud-label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+  .hud-value {
     font-size: 28px;
-    font-weight: 700;
+    font-weight: 600;
+    color: var(--ink);
     font-variant-numeric: tabular-nums;
+    line-height: 1;
   }
+  #timerValue.warn { color: var(--accent); }
 
-  #timer {
-    font-size: 28px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    transition: color 0.3s ease;
+  /* progress line */
+  #timeBar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 3px;
+    background: var(--ink);
+    width: 100%;
+    transform-origin: left;
+    z-index: 5;
+    transition: width 0.1s linear, background-color 0.3s ease;
   }
+  #timeBar.warn { background: var(--accent); }
 
-  #timer.urgent {
-    color: var(--danger);
+  /* the dot */
+  .dot {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--dot);
+    width: 46px;
+    height: 46px;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 0.12s cubic-bezier(.2,1.4,.4,1);
+    z-index: 3;
   }
+  .dot.show { transform: translate(-50%, -50%) scale(1); }
+  .dot.pop { transform: translate(-50%, -50%) scale(1.7); opacity: 0; }
 
-  /* ---------- Screens ---------- */
-  .screen {
+  /* start / end overlay */
+  #overlay {
     position: absolute;
     inset: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 18px;
+    background: #ffffff;
+    z-index: 10;
     text-align: center;
     padding: 24px;
-    background: #fff;
-    z-index: 3;
   }
-
-  .screen.hidden { display: none; }
-
+  #overlay.hidden { display: none; }
   .title {
-    font-size: 64px;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    margin: 0 0 12px;
-  }
-
-  .subtitle {
-    font-size: 17px;
+    font-size: 15px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     color: var(--muted);
-    max-width: 320px;
-    line-height: 1.5;
-    margin: 0 0 28px;
   }
-
-  .highscore {
-    font-size: 14px;
-    color: var(--muted);
-    margin-bottom: 32px;
-  }
-
-  .highscore strong {
-    color: var(--fg);
+  .bigscore {
+    font-size: 96px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
     font-variant-numeric: tabular-nums;
   }
+  .sub {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .sub strong { color: var(--ink); font-weight: 600; }
+  button#startBtn {
+    margin-top: 18px;
+    padding: 14px 34px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.2s ease;
+  }
+  button#startBtn:hover { background: #000; transform: translateY(-1px); }
+  button#startBtn:active { transform: translateY(0); }
 
+  #new-badge {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-transform: uppercase;
+    height: 16px;
+  }
+
+  /* sound toggles */
+  #soundToggles {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .toggle-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    width: 52px;
+    padding: 6px 4px 5px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted);
+    transition: color 0.15s ease;
+  }
+  .toggle-btn:hover { color: var(--ink); }
+  .toggle-btn svg { width: 18px; height: 18px; }
+  .toggle-btn .icon-off { display: none; }
+  .toggle-btn.muted .icon-on { display: none; }
+  .toggle-btn.muted .icon-off { display: block; }
+  .toggle-label {
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  /* back-to-menu link — only shown on the start/end overlay, never
+     during active play, so the playing surface stays pure white */
   .back-link {
     position: absolute;
     top: 24px;
@@ -153,323 +205,400 @@
     font-size: 14px;
     color: var(--muted);
     text-decoration: none;
-    z-index: 6;
+    z-index: 20;
   }
-
-  .back-link:hover {
-    color: var(--fg);
-  }
-
-  button {
-    font-family: inherit;
-    font-size: 17px;
-    font-weight: 600;
-    color: #fff;
-    background: var(--accent);
-    border: none;
-    border-radius: 999px;
-    padding: 16px 40px;
-    cursor: pointer;
-    transition: transform 0.15s ease, opacity 0.15s ease;
-  }
-
-  button:active {
-    transform: scale(0.96);
-    opacity: 0.85;
-  }
-
-  /* ---------- End screen ---------- */
-  .final-score {
-    font-size: 88px;
-    font-weight: 800;
-    line-height: 1;
-    margin: 8px 0;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .final-label {
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-  }
-
-  .best-compare {
-    font-size: 15px;
-    color: var(--muted);
-    margin: 12px 0 8px;
-  }
-
-  .badge {
-    display: none;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-    color: #fff;
-    background: var(--accent);
-    border-radius: 999px;
-    padding: 6px 16px;
-    margin-bottom: 24px;
-  }
-
-  .badge.visible {
-    display: inline-block;
-    animation: pop 0.35s ease;
-  }
-
-  #end-screen button {
-    margin-top: 12px;
-  }
-
-  /* ---------- The dot ---------- */
-  .dot {
-    position: absolute;
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: var(--fg);
-    cursor: pointer;
-    transform: scale(0);
-    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-    z-index: 2;
-  }
-
-  .dot.spawned {
-    transform: scale(1);
-  }
-
-  .dot.popped {
-    transform: scale(0);
-    transition: transform 0.18s ease-in;
-  }
-
-  @keyframes pop {
-    0% { transform: scale(0.6); opacity: 0; }
-    60% { transform: scale(1.08); opacity: 1; }
-    100% { transform: scale(1); }
-  }
-
-  @media (max-width: 480px) {
-    .title { font-size: 48px; }
-    .final-score { font-size: 64px; }
-    #score, #timer { font-size: 22px; }
-    #hud { top: 16px; padding: 0 20px; }
-  }
+  .back-link:hover { color: var(--ink); }
 </style>
 </head>
 <body>
-<div id="app">
+<div id="stage">
+  <div id="hud" style="opacity:0;">
+    <div class="hud-block">
+      <div class="hud-label">Score</div>
+      <div class="hud-value" id="scoreValue">0</div>
+    </div>
+    <div class="hud-block" style="align-items:flex-end;">
+      <div class="hud-label">Zeit</div>
+      <div class="hud-value" id="timerValue">60</div>
+    </div>
+  </div>
+  <div id="timeBar" style="opacity:0;"></div>
 
-  <div id="progress-track"><div id="progress-bar"></div></div>
-
-  <div id="hud">
-    <div id="score">0</div>
-    <div id="timer">60</div>
+  <div id="soundToggles">
+    <button id="musicBtn" class="toggle-btn" aria-label="Musik an/aus" title="Musik an/aus">
+      <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13"></path>
+        <circle cx="6" cy="18" r="3"></circle>
+        <circle cx="18" cy="16" r="3"></circle>
+      </svg>
+      <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13"></path>
+        <circle cx="6" cy="18" r="3"></circle>
+        <circle cx="18" cy="16" r="3"></circle>
+        <line x1="2" y1="2" x2="22" y2="22"></line>
+      </svg>
+      <span class="toggle-label">Musik</span>
+    </button>
+    <button id="sfxBtn" class="toggle-btn" aria-label="Klick-Ton an/aus" title="Klick-Ton an/aus">
+      <svg class="icon-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+      </svg>
+      <svg class="icon-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <line x1="18" y1="9" x2="23" y2="15"></line>
+        <line x1="23" y1="9" x2="18" y2="15"></line>
+      </svg>
+      <span class="toggle-label">Klick</span>
+    </button>
   </div>
 
-  <section id="start-screen" class="screen">
+  <div id="overlay">
     <a class="back-link" href="index.html">← Menü</a>
-    <h1 class="title">60</h1>
-    <p class="subtitle">Klicke so viele Punkte wie möglich in 60 Sekunden.</p>
-    <p class="highscore" id="start-highscore"></p>
-    <button id="start-btn">Start</button>
-  </section>
-
-  <section id="end-screen" class="screen hidden">
-    <a class="back-link" href="index.html">← Menü</a>
-    <div class="final-label">Score</div>
-    <div class="final-score" id="final-score">0</div>
-    <div class="badge" id="new-highscore-badge">Neuer Highscore!</div>
-    <p class="best-compare" id="best-compare"></p>
-    <button id="restart-btn">Nochmal spielen</button>
-  </section>
-
+    <div class="title">Klick-Reflex</div>
+    <div class="bigscore" id="displayScore">0</div>
+    <div class="sub" id="displaySub">Klicke so viele Punkte wie möglich in 60 Sekunden.</div>
+    <button id="startBtn">Start</button>
+    <div id="new-badge"></div>
+  </div>
 </div>
 
 <script>
-(function () {
-  "use strict";
+(function() {
+  const stage = document.getElementById('stage');
+  const hud = document.getElementById('hud');
+  const timeBar = document.getElementById('timeBar');
+  const scoreValue = document.getElementById('scoreValue');
+  const timerValue = document.getElementById('timerValue');
+  const overlay = document.getElementById('overlay');
+  const displayScore = document.getElementById('displayScore');
+  const displaySub = document.getElementById('displaySub');
+  const startBtn = document.getElementById('startBtn');
+  const newBadge = document.getElementById('new-badge');
+  const musicBtn = document.getElementById('musicBtn');
+  const sfxBtn = document.getElementById('sfxBtn');
 
-  var GAME_DURATION = 60; // seconds
-  var URGENT_THRESHOLD = 10; // seconds
-  var DOT_SIZE = 46;
-  var HIGHSCORE_KEY = "dotgame_highscore";
+  const GAME_TIME = 60; // seconds
+  const DOT_SIZE = 46;
 
-  var app = document.getElementById("app");
-  var hud = document.getElementById("hud");
-  var scoreEl = document.getElementById("score");
-  var timerEl = document.getElementById("timer");
-  var progressBar = document.getElementById("progress-bar");
+  let score = 0;
+  let highscore = 0;
+  let timeLeft = GAME_TIME;
+  let playing = false;
+  let timerInterval = null;
+  let currentDot = null;
 
-  var startScreen = document.getElementById("start-screen");
-  var endScreen = document.getElementById("end-screen");
-  var startHighscoreEl = document.getElementById("start-highscore");
-  var finalScoreEl = document.getElementById("final-score");
-  var bestCompareEl = document.getElementById("best-compare");
-  var newHighscoreBadge = document.getElementById("new-highscore-badge");
-  var startBtn = document.getElementById("start-btn");
-  var restartBtn = document.getElementById("restart-btn");
+  // ---------------------------------------------------------------
+  // Audio Engine — 8-bit chiptune, fully synthesized (Web Audio API,
+  // no audio files). Square/triangle oscillators for melody + bass,
+  // short envelope blips for SFX.
+  // ---------------------------------------------------------------
+  const AudioEngine = (function() {
+    let ctx = null;
+    let musicMuted = false;
+    let sfxMuted = false;
+    let musicTimer = null;
+    let masterGain = null;
+    let padFilter = null;
 
-  var score = 0;
-  var timeLeft = GAME_DURATION;
-  var tickInterval = null;
-  var currentDot = null;
-  var running = false;
+    // Chill house background pad, still fully synthesized (Web Audio API,
+    // no audio files). Same I–vi–IV–V progression in C major as before
+    // (C – Am – F – G) for the harmonic foundation, but reworked for an
+    // unobtrusive loop:
+    //  - Sustained triads (full chords, not single-note arpeggios) with
+    //    slow attack/release so they swell in and out like a pad instead
+    //    of "plucking".
+    //  - Sine waves through a gentle lowpass filter instead of square
+    //    waves — square/pulse reads as "chiptune", sine+lowpass reads as
+    //    soft/ambient.
+    //  - One chord per bar (4 beats) at 100 BPM (0.6s/beat) — noticeably
+    //    slower and more spacious than a chiptune loop.
+    //  - A soft, low sine "pulse" on beats 1 and 3 of each bar gives a
+    //    very understated four-on-the-floor house feel without ever
+    //    being percussive or sharp.
+    //  - Overall gain is kept low and envelopes are soft so it always
+    //    sits behind the game, never competes with it.
+    const CHORDS = [
+      { pad: [261.63, 329.63, 392.00], bass: 130.81 }, // C major  (C4 E4 G4 / C3)
+      { pad: [220.00, 261.63, 329.63], bass: 110.00 }, // A minor  (A3 C4 E4 / A2)
+      { pad: [174.61, 220.00, 261.63], bass:  87.31 }, // F major  (F3 A3 C4 / F2)
+      { pad: [196.00, 246.94, 293.66], bass:  98.00 }, // G major  (G3 B3 D4 / G2)
+    ];
+    const BEAT_TIME = 0.6;       // seconds per beat (~100 BPM, deliberately slow)
+    const BEATS_PER_BAR = 4;
+    let barIndex = 0;
 
-  function getHighscore() {
-    var v = parseInt(localStorage.getItem(HIGHSCORE_KEY), 10);
-    return isNaN(v) ? 0 : v;
+    function ensureContext() {
+      if (!ctx) {
+        ctx = new (window.AudioContext || window.webkitAudioContext)();
+        padFilter = ctx.createBiquadFilter();
+        padFilter.type = 'lowpass';
+        padFilter.frequency.value = 1100; // warm, rounded-off top end
+        padFilter.Q.value = 0.3;
+        masterGain = ctx.createGain();
+        masterGain.gain.value = 0.22; // kept low — background, not foreground
+        padFilter.connect(masterGain);
+        masterGain.connect(ctx.destination);
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+
+    // Soft-edged tone: slow attack, slow release, routes through the
+    // lowpass filter by default so it stays warm rather than buzzy.
+    function tone(freq, startTime, duration, type, peakGain, opts) {
+      opts = opts || {};
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+      const attack = opts.attack != null ? opts.attack : 0.25;
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.linearRampToValueAtTime(peakGain, startTime + attack);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+      osc.connect(gain);
+      gain.connect(opts.destination || padFilter);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.05);
+    }
+
+    function scheduleBar() {
+      if (musicMuted || !ctx) return;
+      const t = ctx.currentTime;
+      const chord = CHORDS[barIndex % CHORDS.length];
+      const barDur = BEAT_TIME * BEATS_PER_BAR;
+
+      // sustained pad chord, swells in slowly and covers the whole bar
+      chord.pad.forEach(freq => {
+        tone(freq, t, barDur * 1.05, 'sine', 0.05, { attack: 0.35 });
+      });
+
+      // gentle low pulse on beats 1 and 3 — a whisper of house groove,
+      // never sharp enough to feel like percussion
+      tone(chord.bass, t, BEAT_TIME * 0.9, 'sine', 0.09, { attack: 0.04 });
+      tone(chord.bass, t + BEAT_TIME * 2, BEAT_TIME * 0.9, 'sine', 0.09, { attack: 0.04 });
+
+      barIndex++;
+    }
+
+    function startMusic() {
+      ensureContext();
+      barIndex = 0;
+      if (musicTimer) clearInterval(musicTimer);
+      scheduleBar();
+      musicTimer = setInterval(scheduleBar, BEAT_TIME * BEATS_PER_BAR * 1000);
+    }
+
+    function stopMusic() {
+      if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+    }
+
+    function playBeep() {
+      if (sfxMuted) return;
+      ensureContext();
+      const t = ctx.currentTime;
+      const freq = 700 + Math.random() * 200;
+      tone(freq, t, 0.16, 'sine', 0.12, { attack: 0.005, destination: masterGain });
+    }
+
+    function playHighscoreFanfare() {
+      if (sfxMuted) return;
+      ensureContext();
+      const t = ctx.currentTime;
+      const notes = [523.25, 659.25, 784.00, 1046.50]; // C5 E5 G5 C6
+      notes.forEach((f, i) => tone(f, t + i * 0.14, 0.3, 'sine', 0.14, { attack: 0.02, destination: masterGain }));
+    }
+
+    function playTimeUp() {
+      if (sfxMuted) return;
+      ensureContext();
+      const t = ctx.currentTime;
+      tone(220, t, 0.5, 'sine', 0.14, { attack: 0.03, destination: masterGain });
+      tone(164.81, t + 0.15, 0.45, 'sine', 0.12, { attack: 0.03, destination: masterGain });
+    }
+
+    function setMusicMuted(val) {
+      musicMuted = val;
+      if (musicMuted) stopMusic();
+    }
+
+    function setSfxMuted(val) {
+      sfxMuted = val;
+    }
+
+    function isMusicMuted() { return musicMuted; }
+    function isSfxMuted() { return sfxMuted; }
+
+    return {
+      startMusic, stopMusic, playBeep, playHighscoreFanfare, playTimeUp,
+      setMusicMuted, setSfxMuted, isMusicMuted, isSfxMuted
+    };
+  })();
+
+  function loadHighscore() {
+    try {
+      const val = localStorage.getItem('dotgame_highscore');
+      highscore = val ? (parseInt(val, 10) || 0) : 0;
+    } catch (e) {
+      highscore = 0;
+    }
+    updateIntroText();
   }
 
-  function setHighscore(v) {
-    localStorage.setItem(HIGHSCORE_KEY, String(v));
+  function saveHighscore(val) {
+    try {
+      localStorage.setItem('dotgame_highscore', String(val));
+    } catch (e) {
+      // ignore silently, game still works without persistence
+    }
   }
 
-  function renderStartHighscore() {
-    var best = getHighscore();
-    startHighscoreEl.textContent = best > 0
-      ? "Highscore: " + best
-      : "Noch kein Highscore — leg los!";
+  function loadSoundPrefs() {
+    try {
+      if (localStorage.getItem('dotgame_musicMuted') === 'true') {
+        AudioEngine.setMusicMuted(true);
+        musicBtn.classList.add('muted');
+      }
+    } catch (e) {
+      // default: music on
+    }
+    try {
+      if (localStorage.getItem('dotgame_sfxMuted') === 'true') {
+        AudioEngine.setSfxMuted(true);
+        sfxBtn.classList.add('muted');
+      }
+    } catch (e) {
+      // default: sfx on
+    }
   }
 
-  // Compute a random position for the dot that stays fully on screen
-  // and never overlaps the HUD zone at the top.
-  function randomDotPosition() {
-    var w = window.innerWidth;
-    var h = window.innerHeight;
-    var margin = 12;
-    var hudZone = 76; // px reserved at the top for score/timer/progress bar
+  function saveSoundPref(key, val) {
+    try {
+      localStorage.setItem(key, String(val));
+    } catch (e) {
+      // ignore silently
+    }
+  }
 
-    var maxX = Math.max(margin, w - DOT_SIZE - margin);
-    var maxY = Math.max(hudZone, h - DOT_SIZE - margin);
+  musicBtn.addEventListener('click', () => {
+    const next = !AudioEngine.isMusicMuted();
+    AudioEngine.setMusicMuted(next);
+    musicBtn.classList.toggle('muted', next);
+    saveSoundPref('dotgame_musicMuted', next);
+    if (!next && playing) AudioEngine.startMusic();
+  });
 
-    var x = margin + Math.random() * (maxX - margin);
-    var y = hudZone + Math.random() * (maxY - hudZone);
+  sfxBtn.addEventListener('click', () => {
+    const next = !AudioEngine.isSfxMuted();
+    AudioEngine.setSfxMuted(next);
+    sfxBtn.classList.toggle('muted', next);
+    saveSoundPref('dotgame_sfxMuted', next);
+  });
 
-    return { x: x, y: y };
+  function updateIntroText() {
+    if (!playing) {
+      displaySub.innerHTML = highscore > 0
+        ? 'Klicke so viele Punkte wie möglich in 60 Sekunden.<br>Highscore: <strong>' + highscore + '</strong>'
+        : 'Klicke so viele Punkte wie möglich in 60 Sekunden.';
+    }
+  }
+
+  function randomPosition() {
+    const margin = DOT_SIZE;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const topSafe = 100; // avoid HUD overlap
+    const x = margin + Math.random() * (w - margin * 2);
+    const y = topSafe + Math.random() * (h - topSafe - margin);
+    return { x, y };
   }
 
   function spawnDot() {
-    var dot = document.createElement("div");
-    dot.className = "dot";
-    var pos = randomDotPosition();
-    dot.style.left = pos.x + "px";
-    dot.style.top = pos.y + "px";
-
-    function onActivate(e) {
-      e.preventDefault();
-      if (!running || dot !== currentDot) return;
-      popDot(dot);
-    }
-
-    dot.addEventListener("click", onActivate);
-    dot.addEventListener("touchstart", onActivate, { passive: false });
-
-    app.appendChild(dot);
+    if (currentDot) currentDot.remove();
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    const pos = randomPosition();
+    dot.style.left = pos.x + 'px';
+    dot.style.top = pos.y + 'px';
+    stage.appendChild(dot);
     currentDot = dot;
+    requestAnimationFrame(() => dot.classList.add('show'));
 
-    // Force reflow so the spawn transition actually plays.
-    requestAnimationFrame(function () {
-      dot.classList.add("spawned");
-    });
+    dot.addEventListener('click', onDotClick, { once: true });
   }
 
-  function popDot(dot) {
-    score += 1;
-    scoreEl.textContent = score;
-    dot.classList.remove("spawned");
-    dot.classList.add("popped");
-    setTimeout(function () {
-      if (dot.parentNode) dot.parentNode.removeChild(dot);
-    }, 200);
-
-    if (running) spawnDot();
+  function onDotClick(e) {
+    e.stopPropagation();
+    if (!playing) return;
+    score++;
+    scoreValue.textContent = score;
+    AudioEngine.playBeep();
+    const dot = currentDot;
+    dot.classList.add('pop');
+    dot.removeEventListener('click', onDotClick);
+    setTimeout(() => { if (dot && dot.parentNode) dot.remove(); }, 150);
+    spawnDot();
   }
 
-  function removeCurrentDot() {
-    if (currentDot && currentDot.parentNode) {
-      currentDot.parentNode.removeChild(currentDot);
+  function tick() {
+    timeLeft -= 0.1;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      endGame();
     }
-    currentDot = null;
-  }
-
-  function updateHudTimer() {
-    timerEl.textContent = timeLeft;
-    var urgent = timeLeft <= URGENT_THRESHOLD;
-    timerEl.classList.toggle("urgent", urgent);
-    progressBar.classList.toggle("urgent", urgent);
-    progressBar.style.transform = "scaleX(" + (timeLeft / GAME_DURATION) + ")";
+    const displayTime = Math.ceil(timeLeft);
+    timerValue.textContent = displayTime;
+    const pct = (timeLeft / GAME_TIME) * 100;
+    timeBar.style.width = pct + '%';
+    if (timeLeft <= 10) {
+      timerValue.classList.add('warn');
+      timeBar.classList.add('warn');
+    }
   }
 
   function startGame() {
     score = 0;
-    timeLeft = GAME_DURATION;
-    running = true;
-
-    scoreEl.textContent = "0";
-    updateHudTimer();
-    progressBar.style.transition = "none";
-    progressBar.style.transform = "scaleX(1)";
-    // Re-enable the transition on the next frame for smooth ticking.
-    requestAnimationFrame(function () {
-      progressBar.style.transition = "";
-    });
-
-    startScreen.classList.add("hidden");
-    endScreen.classList.add("hidden");
-    hud.classList.add("visible");
-
+    timeLeft = GAME_TIME;
+    playing = true;
+    scoreValue.textContent = '0';
+    timerValue.textContent = String(GAME_TIME);
+    timerValue.classList.remove('warn');
+    timeBar.classList.remove('warn');
+    timeBar.style.width = '100%';
+    overlay.classList.add('hidden');
+    hud.style.opacity = '1';
+    timeBar.style.opacity = '1';
     spawnDot();
-
-    tickInterval = setInterval(function () {
-      timeLeft -= 1;
-      if (timeLeft <= 0) {
-        timeLeft = 0;
-        updateHudTimer();
-        endGame();
-        return;
-      }
-      updateHudTimer();
-    }, 1000);
+    timerInterval = setInterval(tick, 100);
+    AudioEngine.startMusic();
   }
 
   function endGame() {
-    running = false;
-    clearInterval(tickInterval);
-    removeCurrentDot();
-    hud.classList.remove("visible");
+    playing = false;
+    clearInterval(timerInterval);
+    AudioEngine.stopMusic();
+    AudioEngine.playTimeUp();
+    if (currentDot) { currentDot.remove(); currentDot = null; }
+    hud.style.opacity = '0';
+    timeBar.style.opacity = '0';
 
-    var best = getHighscore();
-    var isNewBest = score > best;
-    if (isNewBest) {
-      setHighscore(score);
-      best = score;
+    const isNewHigh = score > highscore;
+    if (isNewHigh) {
+      highscore = score;
+      saveHighscore(highscore);
+      setTimeout(() => AudioEngine.playHighscoreFanfare(), 400);
     }
 
-    finalScoreEl.textContent = score;
-    newHighscoreBadge.classList.toggle("visible", isNewBest);
-    bestCompareEl.textContent = isNewBest
-      ? "Vorheriger Highscore: " + previousBestBeforeRun
-      : "Highscore: " + best;
-
-    endScreen.classList.remove("hidden");
+    displayScore.textContent = score;
+    newBadge.textContent = isNewHigh ? 'Neuer Highscore!' : '';
+    displaySub.innerHTML = 'Highscore: <strong>' + highscore + '</strong>';
+    startBtn.textContent = 'Nochmal';
+    overlay.classList.remove('hidden');
   }
 
-  // Highscore at the moment the current run started, used to show a
-  // "previous best" comparison when a new highscore is set.
-  var previousBestBeforeRun = 0;
+  startBtn.addEventListener('click', startGame);
 
-  startBtn.addEventListener("click", function () {
-    previousBestBeforeRun = getHighscore();
-    startGame();
-  });
-
-  restartBtn.addEventListener("click", function () {
-    previousBestBeforeRun = getHighscore();
-    startGame();
-  });
-
-  renderStartHighscore();
+  loadHighscore();
+  loadSoundPrefs();
 })();
 </script>
 </body>
