@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Text tippen — 60</title>
+<meta name="description" content="Tippe den vorgegebenen Text so schnell und fehlerfrei wie möglich in 60 Sekunden mit. Ein minimalistisches Browser-Tippspiel.">
+
+<!-- Open Graph -->
+<meta property="og:title" content="Text tippen — 60">
+<meta property="og:description" content="Tippe den vorgegebenen Text so schnell und fehlerfrei wie möglich in 60 Sekunden mit.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://raw.githubusercontent.com/KonstantinMKloster/point-click-game/main/og-image.svg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Text tippen — 60">
+<meta name="twitter:description" content="Tippe den vorgegebenen Text so schnell und fehlerfrei wie möglich in 60 Sekunden mit.">
+
+<!-- Favicon: simple emoji dot as inline SVG -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='%23111'/%3E%3C/svg%3E">
+
+<style>
+  :root {
+    --fg: #111;
+    --muted: #888;
+    --pending: #ccc;
+    --border: #eee;
+    --accent: #111;
+    --danger: #e0242c;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #fff;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  #app {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ---------- Progress bar ---------- */
+  #progress-track {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    z-index: 5;
+  }
+
+  #progress-bar {
+    height: 100%;
+    width: 100%;
+    background: var(--accent);
+    transform-origin: left;
+    transition: transform 1s linear, background-color 0.3s ease;
+  }
+
+  #progress-bar.urgent {
+    background: var(--danger);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    display: none;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0 28px;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  #hud.visible { display: flex; }
+
+  #words {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #timer {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s ease;
+  }
+
+  #timer.urgent {
+    color: var(--danger);
+  }
+
+  /* ---------- Screens ---------- */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: #fff;
+    z-index: 3;
+  }
+
+  .screen.hidden { display: none; }
+
+  .title {
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+
+  .subtitle {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 340px;
+    line-height: 1.5;
+    margin: 0 0 28px;
+  }
+
+  .highscore {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  .highscore strong {
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .back-link {
+    position: absolute;
+    top: 24px;
+    left: 28px;
+    font-size: 14px;
+    color: var(--muted);
+    text-decoration: none;
+    z-index: 6;
+  }
+
+  .back-link:hover {
+    color: var(--fg);
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    padding: 16px 40px;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  button:active {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+
+  /* ---------- End screen ---------- */
+  .stats {
+    display: flex;
+    gap: 36px;
+    margin: 8px 0 20px;
+  }
+
+  .stat-value {
+    font-size: 44px;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-value.danger { color: var(--danger); }
+
+  .stat-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .final-label {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  .best-compare {
+    font-size: 15px;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+
+  .badge {
+    display: none;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background: var(--accent);
+    border-radius: 999px;
+    padding: 6px 16px;
+    margin-bottom: 20px;
+  }
+
+  .badge.visible {
+    display: inline-block;
+    animation: pop 0.35s ease;
+  }
+
+  #end-screen button {
+    margin-top: 12px;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    60% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+
+  /* ---------- Teleprompter ---------- */
+  #type-viewport {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    overflow: hidden;
+    z-index: 2;
+    display: none;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 20%, black 46%, black 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, transparent 20%, black 46%, black 100%);
+  }
+
+  #type-viewport.visible { display: block; }
+
+  #type-text {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: min(680px, 88vw);
+    transform: translate(-50%, 0);
+    font-size: 30px;
+    line-height: 48px;
+    font-family: "Courier New", ui-monospace, Menlo, monospace;
+    letter-spacing: 0.01em;
+    transition: transform 0.18s ease-out;
+    padding-top: 6px;
+  }
+
+  .ch {
+    color: var(--pending);
+  }
+
+  .ch.correct {
+    color: var(--fg);
+  }
+
+  .ch.incorrect {
+    color: var(--danger);
+  }
+
+  .ch.current {
+    background: rgba(17, 17, 17, 0.08);
+    border-radius: 2px;
+  }
+
+  @media (max-width: 480px) {
+    .title { font-size: 48px; }
+    #words, #timer { font-size: 22px; }
+    #hud { top: 16px; padding: 0 20px; }
+    #type-text { font-size: 22px; line-height: 36px; }
+    .stat-value { font-size: 32px; }
+    .stats { gap: 24px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="progress-track"><div id="progress-bar"></div></div>
+
+  <div id="hud">
+    <div id="words">0</div>
+    <div id="timer">60</div>
+  </div>
+
+  <div id="type-viewport"><div id="type-text"></div></div>
+
+  <section id="start-screen" class="screen">
+    <a class="back-link" href="index.html">← Menü</a>
+    <h1 class="title">60</h1>
+    <p class="subtitle">Tippe den eingeblendeten Text so schnell und fehlerfrei wie möglich mit — 60 Sekunden lang.</p>
+    <p class="highscore" id="start-highscore"></p>
+    <button id="start-btn">Start</button>
+  </section>
+
+  <section id="end-screen" class="screen hidden">
+    <a class="back-link" href="index.html">← Menü</a>
+    <div class="final-label">Ergebnis</div>
+    <div class="stats">
+      <div>
+        <div class="stat-value" id="stat-words">0</div>
+        <div class="stat-label">Richtige Wörter</div>
+      </div>
+      <div>
+        <div class="stat-value" id="stat-wpm">0</div>
+        <div class="stat-label">Wörter/Min.</div>
+      </div>
+      <div>
+        <div class="stat-value" id="stat-errors">0%</div>
+        <div class="stat-label">Fehlerquote</div>
+      </div>
+    </div>
+    <div class="badge" id="new-highscore-badge">Neuer Highscore!</div>
+    <p class="best-compare" id="best-compare"></p>
+    <button id="restart-btn">Nochmal spielen</button>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var GAME_DURATION = 60; // seconds
+  var URGENT_THRESHOLD = 10; // seconds
+  var HIGHSCORE_KEY = "typegame_highscore_words";
+  var ANCHOR_RATIO = 0.32; // where the current char sits within the viewport, top-down
+
+  // Pool of short German texts. A random subset/order is assembled on every
+  // run so players can't memorize a fixed sequence.
+  var TEXT_POOL = [
+    "Der Regen trommelte leise gegen das Fenster, während die Stadt langsam zur Ruhe kam.",
+    "Ein guter Kaffee am Morgen kann den ganzen Tag verändern, sagt man zumindest.",
+    "Zwischen den alten Buchseiten lag ein vergilbtes Foto, das niemand mehr zuordnen konnte.",
+    "Die Berge wirkten aus der Ferne friedlich, obwohl der Wind dort oben eisig blies.",
+    "Manchmal reicht ein einziger Satz, um eine ganze Geschichte zu verändern.",
+    "Der Zug verließ pünktlich den Bahnhof, obwohl draußen dichter Nebel lag.",
+    "Sie öffnete das Fenster und ließ die frische Luft des Frühlings herein.",
+    "Ein kleiner Fehler beim Programmieren kann große Auswirkungen haben.",
+    "Die Katze schlich lautlos über das Dach und beobachtete die Vögel im Garten.",
+    "Wissenschaftler entdeckten eine neue Art von Korallen im tiefen Ozean.",
+    "Nach langer Reise erreichten sie endlich das kleine Dorf in den Hügeln.",
+    "Übung macht den Meister, das gilt auch beim schnellen Tippen auf der Tastatur.",
+    "Der Duft von frisch gebackenem Brot zog durch die ganze Nachbarschaft.",
+    "Technologie verändert unseren Alltag schneller, als die meisten Menschen denken.",
+    "Am Horizont färbte sich der Himmel in warmen Orangetönen, kurz bevor die Sonne unterging.",
+    "Ruhe und Geduld helfen oft mehr als Hektik und ständiges Grübeln.",
+    "Die Bibliothek war an diesem Nachmittag außergewöhnlich still und leer.",
+    "Kinder lernen neue Sprachen meist schneller als Erwachsene, weil sie unbefangener sind."
+  ];
+
+  var app = document.getElementById("app");
+  var hud = document.getElementById("hud");
+  var wordsEl = document.getElementById("words");
+  var timerEl = document.getElementById("timer");
+  var progressBar = document.getElementById("progress-bar");
+
+  var typeViewport = document.getElementById("type-viewport");
+  var typeText = document.getElementById("type-text");
+
+  var startScreen = document.getElementById("start-screen");
+  var endScreen = document.getElementById("end-screen");
+  var startHighscoreEl = document.getElementById("start-highscore");
+  var statWordsEl = document.getElementById("stat-words");
+  var statWpmEl = document.getElementById("stat-wpm");
+  var statErrorsEl = document.getElementById("stat-errors");
+  var bestCompareEl = document.getElementById("best-compare");
+  var newHighscoreBadge = document.getElementById("new-highscore-badge");
+  var startBtn = document.getElementById("start-btn");
+  var restartBtn = document.getElementById("restart-btn");
+
+  var timeLeft = GAME_DURATION;
+  var tickInterval = null;
+  var running = false;
+
+  var fullText = "";
+  var spans = [];
+  var currentIndex = 0;
+  var totalKeypresses = 0;
+  var incorrectKeypresses = 0;
+  var correctWordsLive = 0;
+
+  function getHighscore() {
+    var v = parseInt(localStorage.getItem(HIGHSCORE_KEY), 10);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function setHighscore(v) {
+    localStorage.setItem(HIGHSCORE_KEY, String(v));
+  }
+
+  function renderStartHighscore() {
+    var best = getHighscore();
+    startHighscoreEl.textContent = best > 0
+      ? "Highscore: " + best + " Wörter"
+      : "Noch kein Highscore — leg los!";
+  }
+
+  function shuffled(arr) {
+    var copy = arr.slice();
+    for (var i = copy.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = copy[i];
+      copy[i] = copy[j];
+      copy[j] = tmp;
+    }
+    return copy;
+  }
+
+  // Build a long, shuffled run of text so even very fast typists never
+  // hit the end within 60 seconds, and the order differs every round.
+  function buildRunningText() {
+    var parts = shuffled(TEXT_POOL)
+      .concat(shuffled(TEXT_POOL))
+      .concat(shuffled(TEXT_POOL));
+    return parts.join(" ");
+  }
+
+  function renderText() {
+    fullText = buildRunningText();
+    typeText.innerHTML = "";
+    spans = new Array(fullText.length);
+
+    var fragment = document.createDocumentFragment();
+    for (var i = 0; i < fullText.length; i++) {
+      var span = document.createElement("span");
+      span.className = "ch";
+      span.textContent = fullText[i];
+      fragment.appendChild(span);
+      spans[i] = span;
+    }
+    typeText.appendChild(fragment);
+  }
+
+  function updateScrollPosition() {
+    var idx = Math.min(currentIndex, spans.length - 1);
+    var span = spans[idx];
+    if (!span) return;
+    var anchor = typeViewport.clientHeight * ANCHOR_RATIO;
+    var translateY = anchor - span.offsetTop;
+    typeText.style.transform = "translate(-50%, " + translateY + "px)";
+  }
+
+  function setCurrentMarker(prevIndex, newIndex) {
+    if (spans[prevIndex]) spans[prevIndex].classList.remove("current");
+    if (spans[newIndex]) spans[newIndex].classList.add("current");
+  }
+
+  // Recount how many whole words (contiguous non-space runs) up to
+  // currentIndex are fully marked correct, and update the live HUD.
+  // A word only counts once its trailing space has been typed — a word
+  // that is merely in progress (even if correct so far) does not count
+  // yet, so the counter can't be inflated by an unfinished last word.
+  function recountCorrectWords() {
+    var count = 0;
+    var wordOk = true;
+    var inWord = false;
+
+    for (var i = 0; i < currentIndex; i++) {
+      var isSpace = fullText[i] === " ";
+      if (isSpace) {
+        if (inWord && wordOk) count++;
+        inWord = false;
+        wordOk = true;
+      } else {
+        inWord = true;
+        if (!spans[i].classList.contains("correct")) wordOk = false;
+      }
+    }
+
+    correctWordsLive = count;
+    wordsEl.textContent = correctWordsLive;
+  }
+
+  function handleTypedChar(key) {
+    if (currentIndex >= spans.length) return; // ran out of pre-built text (practically never happens)
+
+    var span = spans[currentIndex];
+    var expected = fullText[currentIndex];
+    totalKeypresses++;
+
+    if (key === expected) {
+      span.classList.add("correct");
+      span.classList.remove("incorrect");
+    } else {
+      span.classList.add("incorrect");
+      span.classList.remove("correct");
+      incorrectKeypresses++;
+    }
+
+    setCurrentMarker(currentIndex, currentIndex + 1);
+    currentIndex++;
+    recountCorrectWords();
+    updateScrollPosition();
+  }
+
+  function handleBackspace() {
+    if (currentIndex <= 0) return;
+    var prev = currentIndex - 1;
+    spans[prev].classList.remove("correct", "incorrect");
+    setCurrentMarker(currentIndex, prev);
+    currentIndex = prev;
+    recountCorrectWords();
+    updateScrollPosition();
+  }
+
+  function onKeyDown(e) {
+    if (!running) return;
+
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      handleBackspace();
+      return;
+    }
+
+    // Only single printable characters, and ignore modifier combos
+    // (Ctrl/Cmd shortcuts) so browser features like copy/paste still work.
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      handleTypedChar(e.key);
+    }
+  }
+
+  function updateHudTimer() {
+    timerEl.textContent = timeLeft;
+    var urgent = timeLeft <= URGENT_THRESHOLD;
+    timerEl.classList.toggle("urgent", urgent);
+    progressBar.classList.toggle("urgent", urgent);
+    progressBar.style.transform = "scaleX(" + (timeLeft / GAME_DURATION) + ")";
+  }
+
+  function startGame() {
+    timeLeft = GAME_DURATION;
+    running = true;
+    currentIndex = 0;
+    totalKeypresses = 0;
+    incorrectKeypresses = 0;
+    correctWordsLive = 0;
+
+    wordsEl.textContent = "0";
+    updateHudTimer();
+    progressBar.style.transition = "none";
+    progressBar.style.transform = "scaleX(1)";
+    requestAnimationFrame(function () {
+      progressBar.style.transition = "";
+    });
+
+    startScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+    hud.classList.add("visible");
+    typeViewport.classList.add("visible");
+
+    renderText();
+    setCurrentMarker(-1, 0);
+    requestAnimationFrame(updateScrollPosition);
+
+    tickInterval = setInterval(function () {
+      timeLeft -= 1;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        updateHudTimer();
+        endGame();
+        return;
+      }
+      updateHudTimer();
+    }, 1000);
+  }
+
+  function endGame() {
+    running = false;
+    clearInterval(tickInterval);
+    hud.classList.remove("visible");
+    typeViewport.classList.remove("visible");
+
+    recountCorrectWords();
+    var minutes = GAME_DURATION / 60;
+    var wpm = Math.round(correctWordsLive / minutes);
+    var errorRate = totalKeypresses > 0
+      ? Math.round((incorrectKeypresses / totalKeypresses) * 1000) / 10
+      : 0;
+
+    var best = getHighscore();
+    var isNewBest = correctWordsLive > best;
+    if (isNewBest) {
+      setHighscore(correctWordsLive);
+      best = correctWordsLive;
+    }
+
+    statWordsEl.textContent = correctWordsLive;
+    statWpmEl.textContent = wpm;
+    statErrorsEl.textContent = errorRate + "%";
+    statErrorsEl.classList.toggle("danger", errorRate >= 10);
+
+    newHighscoreBadge.classList.toggle("visible", isNewBest);
+    bestCompareEl.textContent = isNewBest
+      ? "Vorheriger Highscore: " + previousBestBeforeRun + " Wörter"
+      : "Highscore: " + best + " Wörter";
+
+    endScreen.classList.remove("hidden");
+  }
+
+  // Highscore at the moment the current run started, used to show a
+  // "previous best" comparison when a new highscore is set.
+  var previousBestBeforeRun = 0;
+
+  window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("resize", function () {
+    if (running) updateScrollPosition();
+  });
+
+  startBtn.addEventListener("click", function () {
+    previousBestBeforeRun = getHighscore();
+    startGame();
+  });
+
+  restartBtn.addEventListener("click", function () {
+    previousBestBeforeRun = getHighscore();
+    startGame();
+  });
+
+  renderStartHighscore();
+})();
+</script>
+</body>
+</html>
