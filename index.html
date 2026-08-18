@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>60 — Reflex-Klick-Spiel</title>
+<meta name="description" content="Klicke so viele Punkte wie möglich in 60 Sekunden. Ein minimalistisches Browser-Reflexspiel.">
+
+<!-- Open Graph -->
+<meta property="og:title" content="60 — Reflex-Klick-Spiel">
+<meta property="og:description" content="Klicke so viele Punkte wie möglich in 60 Sekunden.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://raw.githubusercontent.com/KonstantinMKloster/point-click-game/main/og-image.svg">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="60 — Reflex-Klick-Spiel">
+<meta name="twitter:description" content="Klicke so viele Punkte wie möglich in 60 Sekunden.">
+
+<!-- Favicon: simple emoji dot as inline SVG -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='%23111'/%3E%3C/svg%3E">
+
+<style>
+  :root {
+    --fg: #111;
+    --muted: #888;
+    --border: #eee;
+    --accent: #111;
+    --danger: #e0242c;
+    color-scheme: light;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #fff;
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  #app {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* ---------- Progress bar ---------- */
+  #progress-track {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    z-index: 5;
+  }
+
+  #progress-bar {
+    height: 100%;
+    width: 100%;
+    background: var(--accent);
+    transform-origin: left;
+    transition: transform 1s linear, background-color 0.3s ease;
+  }
+
+  #progress-bar.urgent {
+    background: var(--danger);
+  }
+
+  /* ---------- HUD ---------- */
+  #hud {
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    display: none;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 0 28px;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  #hud.visible { display: flex; }
+
+  #score {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #timer {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s ease;
+  }
+
+  #timer.urgent {
+    color: var(--danger);
+  }
+
+  /* ---------- Screens ---------- */
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: #fff;
+    z-index: 3;
+  }
+
+  .screen.hidden { display: none; }
+
+  .title {
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+
+  .subtitle {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 320px;
+    line-height: 1.5;
+    margin: 0 0 28px;
+  }
+
+  .highscore {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+
+  .highscore strong {
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 999px;
+    padding: 16px 40px;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  button:active {
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+
+  /* ---------- End screen ---------- */
+  .final-score {
+    font-size: 88px;
+    font-weight: 800;
+    line-height: 1;
+    margin: 8px 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .final-label {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+
+  .best-compare {
+    font-size: 15px;
+    color: var(--muted);
+    margin: 12px 0 8px;
+  }
+
+  .badge {
+    display: none;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background: var(--accent);
+    border-radius: 999px;
+    padding: 6px 16px;
+    margin-bottom: 24px;
+  }
+
+  .badge.visible {
+    display: inline-block;
+    animation: pop 0.35s ease;
+  }
+
+  #end-screen button {
+    margin-top: 12px;
+  }
+
+  /* ---------- The dot ---------- */
+  .dot {
+    position: absolute;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--fg);
+    cursor: pointer;
+    transform: scale(0);
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 2;
+  }
+
+  .dot.spawned {
+    transform: scale(1);
+  }
+
+  .dot.popped {
+    transform: scale(0);
+    transition: transform 0.18s ease-in;
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    60% { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+
+  @media (max-width: 480px) {
+    .title { font-size: 48px; }
+    .final-score { font-size: 64px; }
+    #score, #timer { font-size: 22px; }
+    #hud { top: 16px; padding: 0 20px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="progress-track"><div id="progress-bar"></div></div>
+
+  <div id="hud">
+    <div id="score">0</div>
+    <div id="timer">60</div>
+  </div>
+
+  <section id="start-screen" class="screen">
+    <h1 class="title">60</h1>
+    <p class="subtitle">Klicke so viele Punkte wie möglich in 60 Sekunden.</p>
+    <p class="highscore" id="start-highscore"></p>
+    <button id="start-btn">Start</button>
+  </section>
+
+  <section id="end-screen" class="screen hidden">
+    <div class="final-label">Score</div>
+    <div class="final-score" id="final-score">0</div>
+    <div class="badge" id="new-highscore-badge">Neuer Highscore!</div>
+    <p class="best-compare" id="best-compare"></p>
+    <button id="restart-btn">Nochmal spielen</button>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var GAME_DURATION = 60; // seconds
+  var URGENT_THRESHOLD = 10; // seconds
+  var DOT_SIZE = 46;
+  var HIGHSCORE_KEY = "dotgame_highscore";
+
+  var app = document.getElementById("app");
+  var hud = document.getElementById("hud");
+  var scoreEl = document.getElementById("score");
+  var timerEl = document.getElementById("timer");
+  var progressBar = document.getElementById("progress-bar");
+
+  var startScreen = document.getElementById("start-screen");
+  var endScreen = document.getElementById("end-screen");
+  var startHighscoreEl = document.getElementById("start-highscore");
+  var finalScoreEl = document.getElementById("final-score");
+  var bestCompareEl = document.getElementById("best-compare");
+  var newHighscoreBadge = document.getElementById("new-highscore-badge");
+  var startBtn = document.getElementById("start-btn");
+  var restartBtn = document.getElementById("restart-btn");
+
+  var score = 0;
+  var timeLeft = GAME_DURATION;
+  var tickInterval = null;
+  var currentDot = null;
+  var running = false;
+
+  function getHighscore() {
+    var v = parseInt(localStorage.getItem(HIGHSCORE_KEY), 10);
+    return isNaN(v) ? 0 : v;
+  }
+
+  function setHighscore(v) {
+    localStorage.setItem(HIGHSCORE_KEY, String(v));
+  }
+
+  function renderStartHighscore() {
+    var best = getHighscore();
+    startHighscoreEl.textContent = best > 0
+      ? "Highscore: " + best
+      : "Noch kein Highscore — leg los!";
+  }
+
+  // Compute a random position for the dot that stays fully on screen
+  // and never overlaps the HUD zone at the top.
+  function randomDotPosition() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var margin = 12;
+    var hudZone = 76; // px reserved at the top for score/timer/progress bar
+
+    var maxX = Math.max(margin, w - DOT_SIZE - margin);
+    var maxY = Math.max(hudZone, h - DOT_SIZE - margin);
+
+    var x = margin + Math.random() * (maxX - margin);
+    var y = hudZone + Math.random() * (maxY - hudZone);
+
+    return { x: x, y: y };
+  }
+
+  function spawnDot() {
+    var dot = document.createElement("div");
+    dot.className = "dot";
+    var pos = randomDotPosition();
+    dot.style.left = pos.x + "px";
+    dot.style.top = pos.y + "px";
+
+    function onActivate(e) {
+      e.preventDefault();
+      if (!running || dot !== currentDot) return;
+      popDot(dot);
+    }
+
+    dot.addEventListener("click", onActivate);
+    dot.addEventListener("touchstart", onActivate, { passive: false });
+
+    app.appendChild(dot);
+    currentDot = dot;
+
+    // Force reflow so the spawn transition actually plays.
+    requestAnimationFrame(function () {
+      dot.classList.add("spawned");
+    });
+  }
+
+  function popDot(dot) {
+    score += 1;
+    scoreEl.textContent = score;
+    dot.classList.remove("spawned");
+    dot.classList.add("popped");
+    setTimeout(function () {
+      if (dot.parentNode) dot.parentNode.removeChild(dot);
+    }, 200);
+
+    if (running) spawnDot();
+  }
+
+  function removeCurrentDot() {
+    if (currentDot && currentDot.parentNode) {
+      currentDot.parentNode.removeChild(currentDot);
+    }
+    currentDot = null;
+  }
+
+  function updateHudTimer() {
+    timerEl.textContent = timeLeft;
+    var urgent = timeLeft <= URGENT_THRESHOLD;
+    timerEl.classList.toggle("urgent", urgent);
+    progressBar.classList.toggle("urgent", urgent);
+    progressBar.style.transform = "scaleX(" + (timeLeft / GAME_DURATION) + ")";
+  }
+
+  function startGame() {
+    score = 0;
+    timeLeft = GAME_DURATION;
+    running = true;
+
+    scoreEl.textContent = "0";
+    updateHudTimer();
+    progressBar.style.transition = "none";
+    progressBar.style.transform = "scaleX(1)";
+    // Re-enable the transition on the next frame for smooth ticking.
+    requestAnimationFrame(function () {
+      progressBar.style.transition = "";
+    });
+
+    startScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+    hud.classList.add("visible");
+
+    spawnDot();
+
+    tickInterval = setInterval(function () {
+      timeLeft -= 1;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        updateHudTimer();
+        endGame();
+        return;
+      }
+      updateHudTimer();
+    }, 1000);
+  }
+
+  function endGame() {
+    running = false;
+    clearInterval(tickInterval);
+    removeCurrentDot();
+    hud.classList.remove("visible");
+
+    var best = getHighscore();
+    var isNewBest = score > best;
+    if (isNewBest) {
+      setHighscore(score);
+      best = score;
+    }
+
+    finalScoreEl.textContent = score;
+    newHighscoreBadge.classList.toggle("visible", isNewBest);
+    bestCompareEl.textContent = isNewBest
+      ? "Vorheriger Highscore: " + previousBestBeforeRun
+      : "Highscore: " + best;
+
+    endScreen.classList.remove("hidden");
+  }
+
+  // Highscore at the moment the current run started, used to show a
+  // "previous best" comparison when a new highscore is set.
+  var previousBestBeforeRun = 0;
+
+  startBtn.addEventListener("click", function () {
+    previousBestBeforeRun = getHighscore();
+    startGame();
+  });
+
+  restartBtn.addEventListener("click", function () {
+    previousBestBeforeRun = getHighscore();
+    startGame();
+  });
+
+  renderStartHighscore();
+})();
+</script>
+</body>
+</html>
